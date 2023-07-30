@@ -32,10 +32,16 @@ function Rasterizer(width, height, set_rgba_at, get_rgba_from)
         if ('2d' === type) return ctx2D;
         err('Unsupported context "'+type+'"');
     };
+
+    self.dispose = function() {
+        if (ctx2D) ctx2D.dispose();
+        ctx2D = null;
+    };
 }
 Rasterizer.VERSION = '0.9.92';
 Rasterizer[PROTO] = {
     constructor: Rasterizer,
+    dispose: null,
     width: null,
     height: null,
     getContext: null
@@ -615,12 +621,13 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         }
     };
     self.drawImage = function(imgData, sx, sy, sw, sh, dx, dy, dw, dh) {
+        if (imgData instanceof CanvasLite) imgData = imgData.getContext('2d').getImageData(0, 0, imgData.width, imgData.height);
         if (imgData && ('function' === typeof imgData.getImageData)) imgData = imgData.getImageData();
         if (!imgData || !imgData.data) err('Invalid image data in drawImage');
         var W = width, H = height,
             w = imgData.width, h = imgData.height,
             idata = imgData.data,
-            resize = RenderingContext2D.Interpolation.bilinear,
+            resize = RenderingContext2D.Interpolation['default'],
             argslen = arguments.length
         ;
         if (!w || !h) err('Invalid image data in drawImage');
@@ -668,10 +675,29 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         set_data(null, W, H, imgData.data, w, h, 0, 0, w-1, h-1, x, y);
     };
 
+    self.dispose = function() {
+        get_stroke_at = NOOP;
+        get_fill_at = NOOP;
+        canvas = null;
+        clip_canvas = null;
+        lineCap = 'butt';
+        lineJoin = 'miter';
+        miterLimit = 10.0;
+        lineWidth = 1;
+        lineDash = null;
+        lineDashOffset = 0;
+        transform = null;
+        alpha = 1.0;
+        op = 'source-over';
+        stack = null;
+        currentPath = null;
+    };
+
     reset(true);
 }
 RenderingContext2D[PROTO] = {
     constructor: RenderingContext2D,
+    dispose: null,
     strokeStyle: null,
     fillStyle: null,
     lineWidth: null,
@@ -809,6 +835,7 @@ RenderingContext2D.Interpolation = {
     return interpolated;
 }
 };
+RenderingContext2D.Interpolation['default'] = RenderingContext2D.Interpolation['bilinear'];
 function Path2D(path, transform)
 {
     var self = this, need_new_subpath = true, d = [], sd = null, add_path;

@@ -2,7 +2,7 @@
 
 An html canvas implementation in pure JavaScript
 
-**version: 0.9.92** (69 kB minified)
+**version: 0.9.92** (70 kB minified)
 
 **Uses:**
 
