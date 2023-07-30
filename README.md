@@ -9,6 +9,12 @@ An html canvas implementation in pure JavaScript
 1. [Gradient](https://github.com/foo123/Gradient)
 2. [Rasterizer](https://github.com/foo123/Rasterizer)
 
+**What is not supported:**
+
+1. `lineDash`/`lineDashOffset` (**will be** implemented)
+2. `strokeText`/`fillText`/`measureText` ..  (will **not** be implemented but can be done by drawing the actual curves in the font)
+3. `shadow`/`shadowBlur`/`shadowColor` .. (will **not** be implemented but is easy to do)
+
 **test/demo:**
 
 ```js
