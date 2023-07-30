@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 0.9.92 (2023-07-30 16:26:46)
+*   @version 0.9.92 (2023-07-30 16:44:30)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 0.9.92 (2023-07-30 16:26:46)
+*   @version 0.9.92 (2023-07-30 16:44:30)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -6502,8 +6502,8 @@ Image.detectImageType = function(buffer) {
     ) return 'GIF';
     else if (0xff === readByte(0)
         && 0xd8 === readByte(1)
-        && 0xff === readByte(2)
-        && 0xdb === readByte(3)
+        /*&& 0xff === readByte(2)
+        && 0xdb === readByte(3)*/
     ) return 'JPG';
     return 'NOT_SUPPORTED';
 };

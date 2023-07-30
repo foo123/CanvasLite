@@ -106,8 +106,8 @@ Image.detectImageType = function(buffer) {
     ) return 'GIF';
     else if (0xff === readByte(0)
         && 0xd8 === readByte(1)
-        && 0xff === readByte(2)
-        && 0xdb === readByte(3)
+        /*&& 0xff === readByte(2)
+        && 0xdb === readByte(3)*/
     ) return 'JPG';
     return 'NOT_SUPPORTED';
 };
