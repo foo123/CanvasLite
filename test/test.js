@@ -1,23 +1,15 @@
 "use strict";
 
 const CanvasLite = require(__dirname + '/../build/CanvasLite.js');
+// colorful peace sign
 const canvas = new CanvasLite(300, 300);
 const ctx = canvas.getContext('2d');
-const resize = () => {
-    // read the image to canvas and resize it
-    const img = new CanvasLite.Image();
-    img.onload = () => {
-        const canvas2 = new CanvasLite(200, 200);
-        const ctx2 = canvas2.getContext('2d');
-        ctx2.drawImage(img, 0, 0, 300, 300, 0, 0, 200, 200);
-        canvas2.toPNG().then((png) => require('fs').writeFile(__dirname + '/peace2.png', png, (err) => {
-            if (err) console.log(err);
-        }));
-    };
-    img.src = __dirname + '/peace.png';
-};
-// peace sign
-ctx.strokeStyle = "red";
+const gradient = ctx.createLinearGradient(20, 20, 180, 180);
+gradient.addColorStop(0.0, 'red');
+gradient.addColorStop(0.33, 'yellow');
+gradient.addColorStop(0.66, 'green');
+gradient.addColorStop(1.0, 'blue');
+ctx.strokeStyle = gradient;
 ctx.lineWidth = 21;
 ctx.beginPath();
 ctx.arc(125, 125, 106, 0, 2*Math.PI);
@@ -30,7 +22,22 @@ ctx.moveTo(125, 125);
 ctx.lineTo(125+75, 125+75);
 ctx.stroke();
 // save drawing to disk
-canvas.toPNG().then((png) => require('fs').writeFile(__dirname + '/peace.png', png, (err) => {
-    if (err) console.log(err);
-    else resize();
+canvas.toPNG().then((png) => require('fs').writeFile(__dirname + '/peacecolor.png', png, (err) => {
+    if (err)
+    {
+        console.log(err);
+    }
+    else
+    {
+        // read the image back to canvas and resize it
+        const img = new CanvasLite.Image();
+        img.onload = () => {
+            const canvas2 = new CanvasLite(200, 200);
+            canvas2.getContext('2d').drawImage(img, 0, 0, 300, 300, 0, 0, 200, 200);
+            canvas2.toPNG().then((png) => require('fs').writeFile(__dirname + '/peacecolor2.png', png, (err) => {
+                if (err) console.log(err);
+            }));
+        };
+        img.src = __dirname + '/peacecolor.png';
+    }
 }));

@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 0.9.92 (2023-07-31 16:11:27)
+*   @version 0.9.92 (2023-07-31 22:54:20)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 0.9.92 (2023-07-31 16:11:27)
+*   @version 0.9.92 (2023-07-31 22:54:20)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -3268,7 +3268,7 @@ function NOOP() {}
 *   Gradient
 *   class to create linear/radial/elliptical/conic gradients as bitmaps even without canvas
 *
-*   @version 1.2.2
+*   @version 1.2.3
 *   https://github.com/foo123/Gradient
 *
 **/
@@ -3309,12 +3309,13 @@ function Gradient(grad_color_at)
     });
     self.addColorStop = function(offset, color) {
         _stops = null;
-        stops[String(offset)] = [+offset, parseColor(color) || [0,0,0,0]];
+        stops[String(offset)] = [+offset, parseColor(color) || BLANK];
     };
     self.getColorAt = function(x, y) {
         var im = transform.imatrix(true),
-            p = im ? im.transform(x, y) : null;
-        return p ? grad_color_at(p.x, p.y, colorStops(), new ImArray(4), 0) : new ImArray(4);
+            p = im ? im.transform(x, y) : null,
+            rgba = new ImArray(4);
+        return p ? grad_color_at(p[0], p[1], colorStops(), rgba, 0) : rgba;
     };
     self.getBitmap = function(width, height) {
         width = stdMath.round(width);
@@ -3331,13 +3332,13 @@ function Gradient(grad_color_at)
             {
                 if (x >= width) {x=0; ++y;}
                 p = imatrix.transform(x, y);
-                grad_color_at(p.x, p.y, color_stops, bmp, i);
+                grad_color_at(p[0], p[1], color_stops, bmp, i);
             }
         }
         return bmp;
     };
 }
-Gradient.VERSION = "1.2.2";
+Gradient.VERSION = "1.2.3";
 Gradient[PROTO] = {
     constructor: Gradient,
     transform: null,
@@ -3448,7 +3449,7 @@ Gradient.createConicGradient = function(angle, cx, cy) {
     cy = cy || 0;
     return new Gradient(function(x, y, stops, pixel, i) {
         var t, stop1, stop2, sl = stops.length;
-        t = stdMath.atan2(y - cy, x - cx) + HALF_PI - angle;
+        t = stdMath.atan2(y - cy, x - cx) /*+ HALF_PI*/ - angle;
         if (0 > t) t += TWO_PI;
         if (t > TWO_PI) t -= TWO_PI;
         t = clamp(t/TWO_PI, 0, 1);
@@ -3486,8 +3487,13 @@ function Pattern(pat_color_at)
         configurable: false
     });
     self.getColorAt = function(x, y) {
-        var p = transform.imatrix(true).transform(x, y);
-        return pat_color_at(p.x, p.y, new ImArray(4), 0);
+        var im = transform.imatrix(true), p, rgba = new ImArray(4);
+        if (im)
+        {
+            p = im.transform(x, y);
+            pat_color_at(p[0], p[1], rgba, 0);
+        }
+        return rgba;
     };
     self.getBitmap = function(width, height) {
         width = stdMath.round(width);
@@ -3496,11 +3502,14 @@ function Pattern(pat_color_at)
             i, x, y, p,
             size = (width*height) << 2,
             bmp = new ImArray(size);
-        for (x=0,y=0,i=0; i<size; i+=4,++x)
+        if (imatrix)
         {
-            if (x >= width) {x=0; ++y;}
-            p = imatrix.transform(x, y);
-            pat_color_at(p.x, p.y, bmp, i);
+            for (x=0,y=0,i=0; i<size; i+=4,++x)
+            {
+                if (x >= width) {x=0; ++y;}
+                p = imatrix.transform(x, y);
+                pat_color_at(p[0], p[1], bmp, i);
+            }
         }
         return bmp;
     };
@@ -3530,6 +3539,7 @@ Pattern.createPattern = function(imageData, repetition) {
                     pixel[i + 2] = imageData.data[j + 2];
                     pixel[i + 3] = imageData.data[j + 3];
                 }
+                return pixel;
             });
             case 'repeat-x':
             return new Pattern(function(x, y, pixel, i) {
@@ -3545,6 +3555,7 @@ Pattern.createPattern = function(imageData, repetition) {
                     pixel[i + 2] = imageData.data[j + 2];
                     pixel[i + 3] = imageData.data[j + 3];
                 }
+                return pixel;
             });
             case 'repeat-y':
             return new Pattern(function(x, y, pixel, i) {
@@ -3560,6 +3571,7 @@ Pattern.createPattern = function(imageData, repetition) {
                     pixel[i + 2] = imageData.data[j + 2];
                     pixel[i + 3] = imageData.data[j + 3];
                 }
+                return pixel;
             });
             case 'repeat':
             default:
@@ -3575,6 +3587,7 @@ Pattern.createPattern = function(imageData, repetition) {
                 pixel[i + 1] = imageData.data[j + 1];
                 pixel[i + 2] = imageData.data[j + 2];
                 pixel[i + 3] = imageData.data[j + 3];
+                return pixel;
             });
         }
     }
@@ -3633,34 +3646,36 @@ function Transform()
         return self;
     };
     self.scale = function(sx, sy, ox, oy) {
-        matrix = Matrix2D.scale(sx, sy, ox, oy).mul(matrix);
-        imatrix = imatrix.mul(Matrix2D.scale(1/sx, 1/sy, ox, oy));
+        matrix = matrix.mul(Matrix2D.scale(sx, sy, ox, oy));
+        imatrix = Matrix2D.scale(1/sx, 1/sy, ox, oy).mul(imatrix);
         return self;
     };
     self.rotate = function(theta, ox, oy) {
-        matrix = Matrix2D.rotate(theta, ox, oy).mul(matrix);
-        imatrix = imatrix.mul(Matrix2D.rotate(-theta, ox, oy));
+        matrix = matrix.mul(Matrix2D.rotate(theta, ox, oy));
+        imatrix = Matrix2D.rotate(-theta, ox, oy).mul(imatrix);
         return self;
     };
     self.translate = function(tx, ty) {
-        matrix = Matrix2D.translate(tx, ty).mul(matrix);
-        imatrix = imatrix.mul(Matrix2D.translate(-tx, -ty));
+        matrix = matrix.mul(Matrix2D.translate(tx, ty));
+        imatrix = Matrix2D.translate(-tx, -ty).mul(imatrix);
         return self;
     };
     self.skewX = function(s) {
-        matrix = Matrix2D.skewX(s).mul(matrix);
-        imatrix = imatrix.mul(Matrix2D.skewX(s).inv());
+        var m = Matrix2D.skewX(s);
+        matrix = matrix.mul(m);
+        imatrix = m.inv().mul(imatrix);
         return self;
     };
     self.skewY = function(s) {
-        matrix = Matrix2D.skewY(s).mul(matrix);
-        imatrix = imatrix.mul(Matrix2D.skewY(s).inv());
+        var m = Matrix2D.skewY(s);
+        matrix = matrix.mul(m);
+        imatrix = m.inv().mul(imatrix);
         return self;
     };
     self.transform = function(a, b, c, d, e, f) {
         var m = new Matrix2D(a, c, e, b, d, f);
-        matrix = m.mul(matrix);
-        imatrix = imatrix.mul(m.inv());
+        matrix = matrix.mul(m);
+        imatrix = m.inv().mul(imatrix);
         return self;
     };
 
@@ -3694,7 +3709,7 @@ function quadratic_roots(a, b, c)
 {
     if (is_strictly_equal(a, 0)) return linear_roots(b, c);
     var D = b*b - 4*a*c, DS = 0;
-    if (is_almost_equal(D, 0)) return [-b/(2*a)];
+    if (is_almost_equal(D, 0, 1e-6)) return [-b/(2*a)];
     if (0 > D) return false;
     DS = stdMath.sqrt(D);
     return [(-b-DS)/(2*a), (-b+DS)/(2*a)];
