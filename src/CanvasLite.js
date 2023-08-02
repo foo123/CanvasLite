@@ -72,7 +72,7 @@ function CanvasLite(width, height)
     };
     self.toPNG = async function() {
         // only PNG output format
-        return await imagepng('binary', imageData.data, imageData.width, imageData.height/*, encoderOptions*/);
+        return await imagepng('binary', imageData.data, imageData.width, imageData.height/*, {deflateLevel: 0}*/);
     };
     reset();
 }
@@ -85,5 +85,6 @@ CanvasLite[PROTO] = {
     toBlob: null,
     toPNG: null
 };
+CanvasLite.VERSION = "@@VERSION@@";
 CanvasLite.Image = Image;
 CanvasLite.RenderingContext2D = Rasterizer.RenderingContext2D;

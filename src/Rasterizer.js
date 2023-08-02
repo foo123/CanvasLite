@@ -233,7 +233,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         set: function(c) {
            if (c instanceof Gradient || c instanceof Pattern)
            {
-               get_stroke_at = c.getColorAt.bind(c);
+               get_stroke_at = Rasterizer.getRGBAFrom(c.getColorAt.bind(c));
            }
            else
            {
@@ -248,7 +248,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         set: function(c) {
            if (c instanceof Gradient || c instanceof Pattern)
            {
-               get_fill_at = c.getColorAt.bind(c);
+               get_fill_at = Rasterizer.getRGBAFrom(c.getColorAt.bind(c));
            }
            else
            {
