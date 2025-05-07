@@ -1,8 +1,8 @@
 # CanvasLite
 
-An html canvas implementation in pure JavaScript
+A lite html canvas implementation in pure JavaScript
 
-**version: 0.9.92r2** (71 kB minified)
+**version: 1.0.0** (73 kB minified)
 
 **Uses:**
 
@@ -11,9 +11,8 @@ An html canvas implementation in pure JavaScript
 
 **What is not supported:**
 
-1. `lineDash`/`lineDashOffset` (**will be** implemented)
-2. `strokeText`/`fillText`/`measureText` ..  (will **not** be implemented but can be done by drawing the actual curves in the font)
-3. `shadow`/`shadowBlur`/`shadowColor` .. (will **not** be implemented but is easy to do)
+1. `strokeText`/`fillText`/`measureText` ..  (will **not** be implemented but can be done by drawing the actual curves in the font)
+2. `shadow`/`shadowBlur`/`shadowColor` .. (will **not** be implemented but is easy to do)
 
 **test/demo:**
 
