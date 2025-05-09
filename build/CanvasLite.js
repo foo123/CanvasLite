@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-10 00:49:23)
+*   @version 1.0.0 (2025-05-10 01:00:41)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-10 00:49:23)
+*   @version 1.0.0 (2025-05-10 01:00:41)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -708,10 +708,10 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
             //x = stdMath.round(x);
             //y = stdMath.round(y);
             // bilinear interpolation
-            if (0 <= x && x < w && 0 <= y && y < h)
+            if (-1 < x && x < w && -1 < y && y < h)
             {
-                var deltax = stdMath.abs(x-stdMath.floor(stdMath.abs(x))),
-                    deltay = stdMath.abs(y-stdMath.floor(stdMath.abs(y)));
+                var deltax = stdMath.abs(x)-stdMath.floor(stdMath.abs(x)),
+                    deltay = stdMath.abs(y)-stdMath.floor(stdMath.abs(y));
                 x = stdMath.floor(x);
                 y = stdMath.floor(y);
                 if (x+1 >= w) deltax = 0;
