@@ -669,17 +669,19 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
                     deltay = stdMath.abs(y)-stdMath.floor(stdMath.abs(y));
                 x = stdMath.floor(x);
                 y = stdMath.floor(y);
-                if (x+1 >= w) deltax = 0;
-                if (y+1 >= h) deltay = 0;
+                if (0 > x) deltax = 1.0;
+                if (0 > y) deltay = 1.0;
+                if (x+1 >= w) deltax = 0.0;
+                if (y+1 >= h) deltay = 0.0;
                 var index = 0,
                     A = [0,0,0,0],
                     B = [0,0,0,0],
                     C = [0,0,0,0],
                     D = [0,0,0,0],
-                    a = (1-deltax)*(1-deltay),
-                    b = deltax*(1-deltay),
-                    c = deltay*(1-deltax),
-                    d = deltax*deltay;
+                    a = (1.0-deltax)*(1.0-deltay),
+                    b = (deltax)*(1.0-deltay),
+                    c = (deltay)*(1.0-deltax),
+                    d = (deltax)*(deltay);
                 if (0 <= x && 0 <= y && x < w && y < h)
                 {
                     index = (x + w*y) << 2;
