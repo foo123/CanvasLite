@@ -2,7 +2,7 @@
 
 A lite html canvas implementation in pure JavaScript
 
-**version: 1.0.0** (73 kB minified)
+**version: 1.0.0** (75 kB minified)
 
 **Uses:**
 
@@ -12,7 +12,6 @@ A lite html canvas implementation in pure JavaScript
 **What is not supported:**
 
 1. `strokeText`/`fillText`/`measureText` ..  (will **not** be implemented but can be done by drawing the actual curves in the font)
-2. `shadow`/`shadowBlur`/`shadowColor` .. (will **not** be implemented but is easy to do)
 
 **test/demo:**
 

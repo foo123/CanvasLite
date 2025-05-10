@@ -33,7 +33,7 @@ function Rasterizer(width, height, set_rgba_at, get_rgba_from)
         err('Unsupported context "'+type+'"');
     };
 }
-Rasterizer.VERSION = '1.0.0';
+Rasterizer.VERSION = '1.1.0';
 Rasterizer[PROTO] = {
     constructor: Rasterizer,
     width: null,
@@ -163,49 +163,105 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
 {
     // https://html.spec.whatwg.org/multipage/canvas.html#2dcontext
     var self = this, get_stroke_at, get_fill_at,
-        canvas = null, clip_canvas = null,
+        canvas = null, shadow = null, clip_canvas = null,
         canvas_reset, canvas_output, stack,
-        reset, fill, set_pixel,
-        stroke_pixel, fill_pixel,
-        get_data, set_data,
+        reset, fill, set_pixel, clip_pixel,
+        color_pixel, get_data, set_data,
         lineCap, lineJoin, miterLimit,
         lineWidth, lineDash, lineDashOffset,
+        integral_blur, shadowBlur, shadowColor,
+        shadowOffsetX, shadowOffsetY,
         transform, alpha, op, currentPath;
 
     canvas_reset = function canvas_reset() {
         // sparse array/hash
         canvas = {};
+        // if shadows drawn
+        if ((0 < shadowColor[3]) && (shadowBlur || shadowOffsetX || shadowOffsetY)) shadow = {};
     };
-    canvas_output = function canvas_output(set_pixel) {
-        for (var idx in canvas)
+    canvas_output = function canvas_output(color_at) {
+        /*
+        https://html.spec.whatwg.org/multipage/canvas.html#drawing-model
+        When a shape or image is painted, user agents must follow these steps, in the order given (or act as if they do):
+
+        1. Render the shape or image onto an infinite transparent black bitmap, creating image A, as described in the previous sections. For shapes, the current fill, stroke, and line styles must be honored, and the stroke must itself also be subjected to the current transformation matrix.
+
+        2. Multiply the alpha component of every pixel in A by global alpha.
+
+        3. When the current filter is set to a value other than "none" and all the externally-defined filters it references, if any, are in documents that are currently loaded, then use image A as the input to the current filter, creating image B. If the current filter is a string parseable as a <filter-value-list>, then draw using the current filter in the same manner as SVG.
+
+        Otherwise, let B be an alias for A.
+
+        4. When shadows are drawn, render the shadow from image B, using the current shadow styles, creating image C.
+
+        5. When shadows are drawn, composite C within the clipping region over the current output bitmap using the current compositing and blending operator.
+
+        6. Composite B within the clipping region over the current output bitmap using the current compositing and blending operator.
+
+        When compositing onto the output bitmap, pixels that would fall outside of the output bitmap must be discarded.
+        */
+        var idx, i, xy, x, y;
+        if (shadow)
         {
-            var i = canvas[idx], xy = /*+idx*/idx.split(',');
-            set_pixel(/*xy % width*/+xy[0], /*~~(xy / width)*/+xy[1], i);
+            shadow = integral_blur(shadowBlur, shadow);
+            for (idx in shadow)
+            {
+                i = shadow[idx];
+                xy = idx.split(',');
+                x = +xy[0];
+                y = +xy[1];
+                if ((0 < i) && (0 <= x) && (x < width) && (0 <= y) && (y < height))
+                {
+                    i *= alpha*(clip_canvas ? (clip_canvas[idx] || 0) : 1);
+                    if (0 < i) color_pixel(x, y, i, null, shadowColor);
+                }
+            }
+            shadow = null;
+        }
+        for (idx in canvas)
+        {
+            i = canvas[idx];
+            xy = /*+idx*/idx.split(',');
+            x = /*xy % width*/+xy[0];
+            y = /*~~(xy / width)*/+xy[1];
+            if ((0 < i) && (0 <= x) && (x < width) && (0 <= y) && (y < height))
+            {
+                i *= alpha*(clip_canvas ? (clip_canvas[idx] || 0) : 1);
+                if (0 < i) color_pixel(x, y, i, color_at);
+            }
         }
         canvas = null;
     };
     set_pixel = function set_pixel(x, y, i) {
-        if (0 <= x && x < width && 0 <= y && y < height && 0 < i && 0 < alpha)
+        if (!is_nan(x) && !is_nan(y) && (-shadowBlur <= x) && (x < width+shadowBlur) && (-shadowBlur <= y) && (y < height+shadowBlur) && (0 < i) && (0 < alpha))
         {
             var idx = String(x)+','+String(y)/*String(x + y*width)*/,
-                j = canvas[idx] || 0,
-                m = clip_canvas ? (clip_canvas[idx] || 0) : 1;
-            i *= alpha*m;
+                j = canvas[idx] || 0;
+            if (i > j)
+            {
+                canvas[idx] = i;
+                if (shadow) shadow[String(x+shadowOffsetX)+','+String(y+shadowOffsetY)] = i; // copy alpha channel
+            }
+        }
+    };
+    clip_pixel = function clip_pixel(x, y, i) {
+        if (!is_nan(x) && !is_nan(y) && (-shadowBlur <= x) && (x < width+shadowBlur) && (-shadowBlur <= y) && (y < height+shadowBlur) && (0 < i) && (0 < alpha))
+        {
+            var idx = String(x)+','+String(y),
+                j = canvas[idx] || 0;
+            i *= (clip_canvas ? (clip_canvas[idx] || 0) : 1);
             if (i > j) canvas[idx] = i;
         }
     };
-    stroke_pixel = function stroke_pixel(x, y, i) {
-        var c = 'clear' === op ? BLANK : get_stroke_at(x, y), af = 3 < c.length ? c[3] : 1.0;
-        set_rgba_at(x, y, c[0], c[1], c[2], af*i, op);
-    };
-    fill_pixel = function fill_pixel(x, y, i) {
-        var c = 'clear' === op ? BLANK : get_fill_at(x, y), af = 3 < c.length ? c[3] : 1.0;
+    color_pixel = function color_pixel(x, y, i, color_at, color) {
+        var c = 'clear' === op ? BLANK : (color_at ? color_at(x, y) : color), af = 3 < c.length ? c[3] : 1.0;
         set_rgba_at(x, y, c[0], c[1], c[2], af*i, op);
     };
     reset = function(init) {
         get_stroke_at = Rasterizer.getRGBAFrom([0, 0, 0, 1]);
         get_fill_at = Rasterizer.getRGBAFrom([0, 0, 0, 1]);
         canvas = null;
+        shadow = null;
         clip_canvas = null;
         lineCap = 'butt';
         lineJoin = 'miter';
@@ -213,12 +269,60 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         lineWidth = 1;
         lineDash = [];
         lineDashOffset = 0;
+        shadowColor = BLANK;
+        shadowBlur = 0;
+        shadowOffsetX = 0;
+        shadowOffsetY = 0;
         transform = Matrix2D.EYE();
         alpha = 1.0;
         op = 'source-over';
         stack = [];
         currentPath = new Path2D(transform);
         if (!init) self.clearRect(0, 0, width, height);
+    };
+    integral_blur = function integral_blur(amount, canvas) {
+        if (amount)
+        {
+            var passes = 3, sigma = amount/2, mult = 0.9,
+                d = stdMath.floor(stdMath.max(stdMath.sqrt(12*sigma*sigma/passes + 1), 3)),
+                d2 = d >> 1, d1 = d2+1, dd = d*d,
+                W = d1+width+d1, H = d1+height+d1,
+                x, y, xs, ys, xi, yi,
+                xm, ym, xM, yM, s,
+                size = W*H, pass,
+                SAT = new Array(size);
+            // multiple passes of (a fast/integral) box blur
+            // with appropriate window d
+            // approximate gaussian blur with given sigma
+            // see central limit theorem
+            for (pass=1; pass<=passes; ++pass)
+            {
+                // O(N) computation of summed area table (SAT)
+                for (yi=0,y=-d1; yi<size; yi+=W,++y)
+                {
+                    ys = ','+String(y);
+                    for (s=0,xi=0,x=-d1; xi<W; ++xi,++x)
+                    {
+                        xs = String(x);
+                        s += (canvas[xs+ys] || 0);
+                        SAT[xi+yi] = s + (yi > 0 ? SAT[xi+yi-W] : 0);
+                    }
+                }
+                // O(N) box average computation via SAT
+                canvas = {};
+                for (y=0,ym=(d1-d2-1)*W,yM=(d1+d2)*W; y<height; ++y,ym+=W,yM+=W)
+                {
+                    ys = ','+String(y);
+                    for (x=0,xm=d1-d2-1,xM=d1+d2; x<width; ++x,++xm,++xM)
+                    {
+                        // O(1) average computation
+                        s = ((SAT[yM+xM]||0) - (SAT[yM+xm]||0) - (SAT[ym+xM]||0) + (SAT[ym+xm]||0))/dd;
+                        if (0.0 < s) canvas[String(x)+ys] = mult*s;
+                    }
+                }
+            }
+        }
+        return canvas;
     };
 
     def(self, 'strokeStyle', {
@@ -327,6 +431,51 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
     self.setLineDash = function(ld) {
         self.lineDash = ld;
     };
+    def(self, 'shadowColor', {
+        get: function() {
+            return '';
+        },
+        set: function(c) {
+            if (c)
+            {
+                shadowColor = c.substr && c.split ? parseColor(c) : (c.slice());
+                if (4 > shadowColor.length) shadowColor.push(1.0);
+            }
+        }
+    });
+    def(self, 'shadowBlur', {
+        get: function() {
+            return shadowBlur;
+        },
+        set: function(sb) {
+            if (!is_nan(sb) && is_finite(sb) && (0 <= sb))
+            {
+                shadowBlur = stdMath.round(sb);
+            }
+        }
+    });
+    def(self, 'shadowOffsetX', {
+        get: function() {
+            return shadowOffsetX;
+        },
+        set: function(sx) {
+            if (!is_nan(sx) && is_finite(sx))
+            {
+                shadowOffsetX = stdMath.round(sx);
+            }
+        }
+    });
+    def(self, 'shadowOffsetY', {
+        get: function() {
+            return shadowOffsetY;
+        },
+        set: function(sy) {
+            if (!is_nan(sy) && is_finite(sy))
+            {
+                shadowOffsetY = stdMath.round(sy);
+            }
+        }
+    });
     def(self, 'globalAlpha', {
         get: function() {
             return alpha;
@@ -362,7 +511,11 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         lineDashOffset,
         transform,
         alpha,
-        op
+        op,
+        shadowColor,
+        shadowBlur,
+        shadowOffsetX,
+        shadowOffsetY
         ]);
     };
     self.restore = function() {
@@ -380,6 +533,10 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         currentPath.transform = transform = state[9];
         alpha = state[10];
         op = state[11];
+        shadowColor = state[12];
+        shadowBlur = state[13];
+        shadowOffsetX = state[14];
+        shadowOffsetY = state[15];
     };
     self.reset = function() {
         reset();
@@ -475,16 +632,16 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
                 sy = hypot(-t.m12, t.m22);
             }*/
             canvas_reset();
-            stroke_path(set_pixel, path, lineWidth, lineDash, lineDashOffset, lineCap, lineJoin, miterLimit, sx, sy, 0, 0, width - 1, height - 1);
-            canvas_output(stroke_pixel);
+            stroke_path(set_pixel, path, lineWidth, lineDash, lineDashOffset, lineCap, lineJoin, miterLimit, sx, sy, 0-shadowBlur, 0-shadowBlur, width-1+shadowBlur, height-1+shadowBlur);
+            canvas_output(get_stroke_at);
         }
     };
     fill = function(path, fillRule) {
         var lw = 0.5/*0.65*/,
-            xmin = 0,
-            ymin = 0,
-            xmax = width - 1,
-            ymax = height - 1;
+            xmin = 0-shadowBlur,
+            ymin = 0-shadowBlur,
+            xmax = width-1+shadowBlur,
+            ymax = height-1+shadowBlur;
         // stroke thin path outline
         stroke_path(set_pixel, path, lw, [], 0, 'butt', 'bevel', 0, 1, 1, xmin, ymin, xmax, ymax);
         // fill path interior
@@ -513,7 +670,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         path = path || currentPath;
         canvas_reset();
         fill(path, fillRule);
-        canvas_output(fill_pixel);
+        canvas_output(get_fill_at);
     };
     self.clip = function(path, fillRule) {
         if (!arguments.length || (null == path && null == fillRule))
@@ -537,10 +694,13 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         if ('evenodd' !== fillRule) fillRule = 'nonzero';
         path = path || currentPath;
         if (path === currentPath) currentPath = new Path2D(transform);
-        canvas_reset();
+        var sp = set_pixel;
+        set_pixel = clip_pixel;
+        canvas = {};
         fill(path, fillRule);
         clip_canvas = canvas;
         canvas = null;
+        set_pixel = sp;
     };
     self.isPointInStroke = function(path, x, y) {
         if (3 > arguments.length)
@@ -633,9 +793,10 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         if (imgData instanceof CanvasLite) imgData = imgData.getContext('2d').getImageData(0, 0, imgData.width, imgData.height);
         if (imgData && ('function' === typeof imgData.getImageData)) imgData = imgData.getImageData();
         if (!imgData || !imgData.data) err('Invalid image data in drawImage');
-        var W = width, H = height, w = imgData.width, h = imgData.height,
-            w4 = w << 2, data = imgData.data, argslen = arguments.length,
-            T, P, get_fill_at_saved = get_fill_at, res
+        var W = width, H = height,
+            w = imgData.width, h = imgData.height,
+            data = imgData.data, argslen = arguments.length,
+            T, P, res, gf = get_fill_at
         ;
         if (!w || !h) err('Invalid image data in drawImage');
         sx = sx || 0;
@@ -653,8 +814,9 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
             dh = sh;
         }
         // fill rect with image taking account of active transform
-        T = transform.inv(); P = [0, 0];
-        res = [0,0,0,0];
+        T = transform.inv();
+        P = [0, 0];
+        res = [0, 0, 0, 0];
         get_fill_at = function(x, y) {
             T.transform(x, y, P);
             x = sx + (P[0]-dx)*sw/dw;
@@ -665,23 +827,26 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
             // bilinear interpolation
             if (-1 < x && x < w && -1 < y && y < h)
             {
-                var deltax = stdMath.abs(x)-stdMath.floor(stdMath.abs(x)),
-                    deltay = stdMath.abs(y)-stdMath.floor(stdMath.abs(y));
-                x = stdMath.floor(x);
-                y = stdMath.floor(y);
-                if (0 > x) deltax = 1.0;
-                if (0 > y) deltay = 1.0;
-                if (x+1 >= w) deltax = 0.0;
-                if (y+1 >= h) deltay = 0.0;
-                var index = 0,
+                var fx = stdMath.floor(x),
+                    fy = stdMath.floor(y),
+                    deltax = stdMath.abs(x-fx),
+                    deltay = stdMath.abs(y-fy),
+                    index = 0,
                     A = [0,0,0,0],
                     B = [0,0,0,0],
                     C = [0,0,0,0],
                     D = [0,0,0,0],
-                    a = (1.0-deltax)*(1.0-deltay),
-                    b = (deltax)*(1.0-deltay),
-                    c = (deltay)*(1.0-deltax),
-                    d = (deltax)*(deltay);
+                    a = 0, b = 0,
+                    c = 0, d = 0;
+                x = fx; y = fy;
+                //if (0 > x) deltax = 1;
+                //if (0 > y) deltay = 1;
+                //if (x+1 >= w) deltax = 0;
+                //if (y+1 >= h) deltay = 0;
+                a = (1-deltax)*(1-deltay);
+                b = (deltax)*(1-deltay);
+                c = (deltay)*(1-deltax);
+                d = (deltax)*(deltay);
                 if (0 <= x && 0 <= y && x < w && y < h)
                 {
                     index = (x + w*y) << 2;
@@ -724,7 +889,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         };
         self.fillRect(dx, dy, dw, dh);
         // restore
-        get_fill_at = get_fill_at_saved;
+        get_fill_at = gf;
         /*
         // NOTE: current transform is not taken account of
         var W = width, H = height,
@@ -793,6 +958,10 @@ RenderingContext2D[PROTO] = {
     lineDashOffset: null,
     getLineDash: null,
     setLineDash: null,
+    shadowColor: null,
+    shadowBlur: null,
+    shadowOffsetX: null,
+    shadowOffsetY: null,
     globalAlpha: null,
     globalCompositeOperation: null,
     save: null,
