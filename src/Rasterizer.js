@@ -2,7 +2,7 @@
 *   Rasterizer
 *   rasterize, stroke and fill lines, rectangles, curves and paths
 *
-*   @version 1.0.0
+*   @version 1.1.0
 *   https://github.com/foo123/Rasterizer
 *
 **/

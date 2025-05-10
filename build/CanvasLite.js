@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-10 16:53:01)
+*   @version 1.0.0 (2025-05-10 16:55:50)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-10 16:53:01)
+*   @version 1.0.0 (2025-05-10 16:55:50)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -47,7 +47,7 @@ var PROTO = 'prototype',
 *   Rasterizer
 *   rasterize, stroke and fill lines, rectangles, curves and paths
 *
-*   @version 1.0.0
+*   @version 1.1.0
 *   https://github.com/foo123/Rasterizer
 *
 **/
