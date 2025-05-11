@@ -198,6 +198,22 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
 
         When compositing onto the output bitmap, pixels that would fall outside of the output bitmap must be discarded.
         */
+        if (color_at instanceof Gradient || color_at instanceof Pattern)
+        {
+            color_at.transform.reset();
+            if (currentPath)
+            {
+                color_at.transform.transform(
+                currentPath.transform.a,
+                currentPath.transform.b,
+                currentPath.transform.c,
+                currentPath.transform.d,
+                currentPath.transform.e,
+                currentPath.transform.f
+                );
+            }
+            color_at = color_at.getColorAt.bind(color_at);
+        }
         var idx, i, xy, x, y, c,
             col = null, shadow = null;
         // if shadows drawn
@@ -362,7 +378,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         set: function(c) {
            if (c instanceof Gradient || c instanceof Pattern)
            {
-               get_stroke_at = c.getColorAt.bind(c);
+               get_stroke_at = c;
            }
            else
            {
@@ -377,7 +393,7 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         set: function(c) {
            if (c instanceof Gradient || c instanceof Pattern)
            {
-               get_fill_at = c.getColorAt.bind(c);
+               get_fill_at = c;
            }
            else
            {

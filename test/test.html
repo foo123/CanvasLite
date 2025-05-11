@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html><head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<title>CanvasLite Test</title>
+<style type="text/css">
+body {
+    font-size: 16px;
+    font-family: Arial, san-serif;
+    background: white;
+}
+.canvas {
+    position: relative;
+    display: inline-block;
+    width: 200px;
+    margin-right: 10px
+}
+canvas {
+    position: relative;
+    display: block;
+    margin: 5px auto;
+}
+h4 {
+    display: block;
+}
+</style>
+</head><body>
+<h1>CanvasLite <span id="ver"></span></h1>
+<div id="test1" class="canvas">
+<b>Canvas:</b><br/>
+</div>
+<div id="test2" class="canvas">
+<b>CanvasLite:</b><br/>
+</div>
+<script src="../build/CanvasLite.js"></script>
+<script>
+(function() {
+"use strict";
+document.getElementById('ver').textContent = 'v.'+CanvasLite.VERSION;
+
+const w = 200, h = 200,
+    test1 = document.getElementById('test1'),
+    test2 = document.getElementById('test2');
+
+function text(str, tag)
+{
+    var el = document.createElement(tag || 'span');
+    el.textContent = String(str);
+    return el;
+}
+function addColorStops(gradient)
+{
+    ([0.0, 0.33, 0.66, 1.0]).forEach((s, i) => {
+        gradient.addColorStop(s, (['red', 'yellow', 'green', 'blue'])[i]);
+    });
+    return gradient;
+}
+function drawGradientLine(x1, y1, x2, y2, lw, ld, lc, rot)
+{
+    lc = lc || 'butt';//'square';//'round';
+    ld = ld || [];
+    lw = lw || 1;
+    const canvas1 = document.createElement('canvas');
+    const canvas2 = document.createElement('canvas');
+    const canvaslite = new CanvasLite(w, h);
+    canvas1.width = w;
+    canvas1.height = h;
+    canvas2.width = w;
+    canvas2.height = h;
+    canvas1.style.width = String(w)+'px';
+    canvas1.style.height = String(h)+'px';
+    canvas2.style.width = String(w)+'px';
+    canvas2.style.height = String(h)+'px';
+    test1.appendChild(text((1 < lw ? 'Thick Gradient Line' : 'Gradient Line')+' ('+lc+')'));
+    test2.appendChild(text((1 < lw ? 'Thick Gradient Line' : 'Gradient Line')+' ('+lc+')'));
+    test1.appendChild(canvas1);
+    test2.appendChild(canvas2);
+
+    const ctx1 = canvas1.getContext("2d");
+    const grad1 = addColorStops(ctx1.createLinearGradient(20, 20, 180, 180));
+
+    if (rot)
+    {
+        ctx1.translate(w/2,h/2);
+        ctx1.rotate(rot);
+        ctx1.translate(-w/2,-h/2);
+    }
+    ctx1.beginPath();
+    ctx1.strokeStyle = grad1;
+    ctx1.lineCap = lc;
+    ctx1.lineWidth = lw;
+    ctx1.lineDashOffset = ld.length ? ld[0] : 0;
+    ctx1.setLineDash(ld.length ? ld[1] : []);
+    ctx1.moveTo(x1, y1);
+    ctx1.lineTo(x2, y2);
+    ctx1.stroke();
+
+    const ctx = canvaslite.getContext("2d");
+    const grad2 = addColorStops(ctx.createLinearGradient(20, 20, 180, 180));
+    if (rot)
+    {
+        ctx.translate(w/2,h/2);
+        ctx.rotate(rot);
+        ctx.translate(-w/2,-h/2);
+    }
+    ctx.beginPath();
+    ctx.strokeStyle = grad2;
+    ctx.lineCap = lc;
+    ctx.lineWidth = lw;
+    ctx.lineDashOffset = ld.length ? ld[0] : 0;
+    ctx.setLineDash(ld.length ? ld[1] : []);
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    const ctx2 = canvas2.getContext("2d");
+    ctx2.putImageData(new ImageData(ctx.getImageData(0,0,w,h).data, w, h), 0, 0);
+}
+drawGradientLine(6, 20, 120, 100, 20, [], 'round');
+drawGradientLine(6, 20, 120, 100, 20, [], 'round', -Math.PI/8);
+})();
+</script>
+</body>
+</html>
