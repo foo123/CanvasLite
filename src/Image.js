@@ -99,42 +99,65 @@ function Image()
             return src;
         },
         set: function(file) {
-            if ((('undefined' !== typeof ArrayBuffer) && (file instanceof ArrayBuffer))
-                || (('undefined' !== typeof Buffer) && (file instanceof Buffer)))
+            /*if (isBrowser)
             {
-                // buffer passed
-                // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-                // https://nodejs.org/api/buffer.html#class-buffer
-                load(src = file);
+                var im = new window.Image();
+                im.onload = function() {
+                    var canvas = document.createElement('canvas'),
+                        ctx = canvas.getContext('2d'), imgData;
+
+                    canvas.width = im.width;
+                    canvas.height = im.height;
+                    imgData = ctx.drawImage(im, 0, 0);
+                    imgData = ctx.getImageData(0, 0, im.width, im.height);
+
+                    imageData = imgData;
+                    width = imgData.width;
+                    height = imgData.height;
+                    if (self.onload) self.onload();
+                };
+                im.onerror = error;
+                im.src = file;
             }
-            else if ((('undefined' !== typeof Blob) && (file instanceof Blob))
-                || (('undefined' !== typeof Buffer) && (Buffer.Blob) && (file instanceof Buffer.Blob)))
-            {
-                // blob passed
-                // https://developer.mozilla.org/en-US/docs/Web/API/Blob
-                // https://nodejs.org/api/buffer.html#class-blob
-                (src = file).arrayBuffer().then(load).catch(error);
-            }
-            else if (('string' === typeof file) || (file instanceof String))
-            {
-                if (/^data:image\/[a-z]+;base64,/.test(file))
+            else
+            {*/
+                if ((('undefined' !== typeof ArrayBuffer) && (file instanceof ArrayBuffer))
+                    || (('undefined' !== typeof Buffer) && (file instanceof Buffer)))
                 {
-                    // base64 encoded image
-                    load(base64_decode((src = file).slice(file.indexOf(';base64,')+8)));
+                    // buffer passed
+                    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+                    // https://nodejs.org/api/buffer.html#class-buffer
+                    load(src = file);
                 }
-                else if (isNode)
+                else if ((('undefined' !== typeof Blob) && (file instanceof Blob))
+                    || (('undefined' !== typeof Buffer) && (Buffer.Blob) && (file instanceof Buffer.Blob)))
                 {
-                    // file path of image
-                    require('fs').readFile(src = file, function(err, buffer) {
-                        if (err) error(err);
-                        else load(buffer);
-                    });
+                    // blob passed
+                    // https://developer.mozilla.org/en-US/docs/Web/API/Blob
+                    // https://nodejs.org/api/buffer.html#class-blob
+                    (src = file).arrayBuffer().then(load).catch(error);
                 }
-            }
-            /*else
-            {
-                error('Unsupported src property');
-            }*/
+                else if (('string' === typeof file) || (file instanceof String))
+                {
+                    if (/^data:image\/[a-z]+;base64,/.test(file))
+                    {
+                        // base64 encoded image
+                        load(base64_decode((src = file).slice(file.indexOf(';base64,')+8)));
+                    }
+                    else if (isNode)
+                    {
+                        // file path of image
+                        require('fs').readFile(src = file, function(err, buffer) {
+                            if (err) error(err);
+                            else load(buffer);
+                        });
+                    }
+                }
+                /*else
+                {
+                    error('Unsupported src property');
+                }*/
+            /*}*/
         }
     });
     self.getImageData = function() {

@@ -2,14 +2,14 @@
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-11 22:19:37)
+*   @version 1.0.1 (2025-07-06 14:11:55)
 *   https://github.com/foo123/CanvasLite
 *
 **//**
 *   CanvasLite
 *   an html canvas implementation in pure JavaScript
 *
-*   @version 1.0.0 (2025-05-11 22:19:37)
+*   @version 1.0.1 (2025-07-06 14:11:55)
 *   https://github.com/foo123/CanvasLite
 *
 **/
@@ -42,12 +42,11 @@ var PROTO = 'prototype',
     COMMAND = /[MLHVCSQTAZ]/gi,
     NUMBER = /-?(?:(?:\d+\.\d+)|(?:\.\d+)|(?:\d+))/g
 ;
-
 /**
 *   Rasterizer
 *   rasterize, stroke and fill lines, rectangles, curves and paths
 *
-*   @version 1.1.0
+*   @version 1.1.1
 *   https://github.com/foo123/Rasterizer
 *
 **/
@@ -78,7 +77,7 @@ function Rasterizer(width, height, set_rgba_at, get_rgba_from)
         err('Unsupported context "'+type+'"');
     };
 }
-Rasterizer.VERSION = '1.1.0';
+Rasterizer.VERSION = '1.1.1';
 Rasterizer[PROTO] = {
     constructor: Rasterizer,
     width: null,
@@ -883,11 +882,11 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
     self.drawImage = function(imgData, sx, sy, sw, sh, dx, dy, dw, dh) {
         if (imgData instanceof CanvasLite) imgData = imgData.getContext('2d').getImageData(0, 0, imgData.width, imgData.height);
         if (imgData && ('function' === typeof imgData.getImageData)) imgData = imgData.getImageData();
-        if (!imgData || !imgData.data) err('Invalid image data in drawImage');
+         if (!imgData || !imgData.data) err('Invalid image data in drawImage');
         var W = width, H = height,
             w = imgData.width, h = imgData.height,
             data = imgData.data, argslen = arguments.length,
-            T, P, res, gf = get_fill_at
+            T, P, z, pt, res, gf = get_fill_at
         ;
         if (!w || !h) err('Invalid image data in drawImage');
         sx = sx || 0;
@@ -908,6 +907,20 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         T = transform.inv();
         P = [0, 0];
         res = [0, 0, 0, 0];
+        z = [0, 0, 0, 0];
+        pt = function(x, y) {
+            if (0 <= x && 0 <= y && x < w && y < h)
+            {
+                var index = (x + w*y) << 2;
+                return [
+                data[index  ],
+                data[index+1],
+                data[index+2],
+                data[index+3]
+                ];
+            }
+            return z;
+        };
         get_fill_at = function(x, y) {
             T.transform(x, y, P);
             x = sx + (P[0]-dx)*sw/dw;
@@ -915,65 +928,68 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
             // nearest interpolation
             //x = stdMath.round(x);
             //y = stdMath.round(y);
-            // bilinear interpolation
             if (-1 < x && x < w && -1 < y && y < h)
             {
                 var fx = stdMath.floor(x),
                     fy = stdMath.floor(y),
                     deltax = stdMath.abs(x-fx),
-                    deltay = stdMath.abs(y-fy),
-                    index = 0,
-                    A = [0,0,0,0],
-                    B = [0,0,0,0],
-                    C = [0,0,0,0],
-                    D = [0,0,0,0],
-                    a = 0, b = 0,
-                    c = 0, d = 0;
+                    deltay = stdMath.abs(y-fy);
                 x = fx; y = fy;
-                //if (0 > x) deltax = 1;
-                //if (0 > y) deltay = 1;
-                //if (x+1 >= w) deltax = 0;
-                //if (y+1 >= h) deltay = 0;
-                a = (1-deltax)*(1-deltay);
-                b = (deltax)*(1-deltay);
-                c = (deltay)*(1-deltax);
-                d = (deltax)*(deltay);
-                if (0 <= x && 0 <= y && x < w && y < h)
-                {
-                    index = (x + w*y) << 2;
-                    A[0] = data[index  ];
-                    A[1] = data[index+1];
-                    A[2] = data[index+2];
-                    A[3] = data[index+3];
-                }
-                if (0 <= x+1 && 0 <= y && x+1 < w && y < h)
-                {
-                    index = (x+1 + w*y) << 2;
-                    B[0] = data[index  ];
-                    B[1] = data[index+1];
-                    B[2] = data[index+2];
-                    B[3] = data[index+3];
-                }
-                if (0 <= x && 0 <= y+1 && x < w && y+1 < h)
-                {
-                    index = (x + w*(y+1)) << 2;
-                    C[0] = data[index  ];
-                    C[1] = data[index+1];
-                    C[2] = data[index+2];
-                    C[3] = data[index+3];
-                }
-                if (0 <= x+1 && 0 <= y+1 && x+1 < w && y+1 < h)
-                {
-                    index = (x+1 + w*(y+1)) << 2;
-                    D[0] = data[index  ];
-                    D[1] = data[index+1];
-                    D[2] = data[index+2];
-                    D[3] = data[index+3];
-                }
-                res[0] = clamp(stdMath.round(A[0]*a + B[0]*b + C[0]*c + D[0]*d), 0, 255);
-                res[1] = clamp(stdMath.round(A[1]*a + B[1]*b + C[1]*c + D[1]*d), 0, 255);
-                res[2] = clamp(stdMath.round(A[2]*a + B[2]*b + C[2]*c + D[2]*d), 0, 255);
-                res[3] = clamp(stdMath.round(A[3]*a + B[3]*b + C[3]*c + D[3]*d), 0, 255)/255;
+                /*
+                // bilinear
+                //a = (1-deltax)*(1-deltay);
+                //b = (deltax)*(1-deltay);
+                //c = (deltay)*(1-deltax);
+                //d = (deltax)*(deltay);
+                //((1-dx)*p00+dx*p10)(1-dy) + ((1-dx)*p10 + dx*p11)*dy
+                var p00 = pt(x  ,y  ), p10 = pt(x+1,y  ),
+                    p01 = pt(x  ,y+1), p11 = pt(x+1,y+1);
+                res[0] = clamp(stdMath.round(linear(
+                    linear(p00[0], p10[0], deltax),
+                    linear(p10[0], p11[0], deltax),
+                deltay)), 0, 255);
+                res[1] = clamp(stdMath.round(linear(
+                    linear(p00[1], p10[1], deltax),
+                    linear(p10[1], p11[1], deltax),
+                deltay)), 0, 255);
+                res[2] = clamp(stdMath.round(linear(
+                    linear(p00[2], p10[2], deltax),
+                    linear(p10[2], p11[2], deltax),
+                deltay)), 0, 255);
+                res[3] = clamp(stdMath.round(linear(
+                    linear(p00[3], p10[3], deltax),
+                    linear(p10[3], p11[3], deltax),
+                deltay)), 0, 255)/255;
+                */
+                // bicubic
+                var p00 = pt(x-1,y-1), p10 = pt(x  ,y-1), p20 = pt(x+1,y-1), p30 = pt(x+2,y-1),
+                    p01 = pt(x-1,y  ), p11 = pt(x  ,y  ), p21 = pt(x+1,y  ), p31 = pt(x+2,y  ),
+                    p02 = pt(x-1,y+1), p12 = pt(x  ,y+1), p22 = pt(x+1,y+1), p32 = pt(x+2,y+1),
+                    p03 = pt(x-1,y+2), p13 = pt(x  ,y+2), p23 = pt(x+1,y+2), p33 = pt(x+2,y+2);
+                res[0] = clamp(stdMath.round(cubic(
+                    cubic(p00[0], p10[0], p20[0], p30[0], deltax),
+                    cubic(p01[0], p11[0], p21[0], p31[0], deltax),
+                    cubic(p02[0], p12[0], p22[0], p32[0], deltax),
+                    cubic(p03[0], p13[0], p23[0], p33[0], deltax),
+                    deltay)), 0, 255);
+                res[1] = clamp(stdMath.round(cubic(
+                    cubic(p00[1], p10[1], p20[1], p30[1], deltax),
+                    cubic(p01[1], p11[1], p21[1], p31[1], deltax),
+                    cubic(p02[1], p12[1], p22[1], p32[1], deltax),
+                    cubic(p03[1], p13[1], p23[1], p33[1], deltax),
+                    deltay)), 0, 255);
+                res[2] = clamp(stdMath.round(cubic(
+                    cubic(p00[2], p10[2], p20[2], p30[2], deltax),
+                    cubic(p01[2], p11[2], p21[2], p31[2], deltax),
+                    cubic(p02[2], p12[2], p22[2], p32[2], deltax),
+                    cubic(p03[2], p13[2], p23[2], p33[2], deltax),
+                    deltay)), 0, 255);
+                res[3] = clamp(stdMath.round(cubic(
+                    cubic(p00[3], p10[3], p20[3], p30[3], deltax),
+                    cubic(p01[3], p11[3], p21[3], p31[3], deltax),
+                    cubic(p02[3], p12[3], p22[3], p32[3], deltax),
+                    cubic(p03[3], p13[3], p23[3], p33[3], deltax),
+                    deltay)), 0, 255)/255;
                 return res;
             }
             return BLANK;
@@ -1181,6 +1197,21 @@ RenderingContext2D.Interpolation = {
     return interpolated;
 }*/
 };
+/*function nearest(A, B, t)
+{
+    return t < 0.5 ? A : B;
+}*/
+function linear(A, B, t)
+{
+    // linear bezier
+    return A*(1-t) + B*(t);
+}
+function cubic(A, B, C, D, t)
+{
+    // cubic hermite
+    var t2 = t*t;
+    return (-A / 2.0 + (3.0*B) / 2.0 - (3.0*C) / 2.0 + D / 2.0)*t2*t + (A - (5.0*B) / 2.0 + 2.0*C - D / 2.0)*t2 + (-A / 2.0 + C / 2.0)*t + (B);
+}
 function Path2D(path, transform)
 {
     var self = this, need_new_subpath = true, d = [], sd = null, add_path;
@@ -3779,7 +3810,7 @@ function NOOP() {}
 *   Gradient
 *   class to create linear/radial/elliptical/conic gradients as bitmaps even without canvas
 *
-*   @version 1.2.3
+*   @version 1.2.4
 *   https://github.com/foo123/Gradient
 *
 **/
@@ -3829,7 +3860,7 @@ function Gradient(grad_color_at)
         return p ? grad_color_at(p[0], p[1], colorStops(), rgba, 0) : rgba;
     };
 }
-Gradient.VERSION = "1.2.3";
+Gradient.VERSION = "1.2.4";
 Gradient[PROTO] = {
     constructor: Gradient,
     transform: null,
@@ -3993,72 +4024,308 @@ Pattern[PROTO] = {
     getColorAt: null
 };
 Pattern.createPattern = function(imageData, repetition) {
-    if (imageData && ('function' === typeof imageData.getImageData)) imageData = imageData.getImageData();
     if (imageData && imageData.data && imageData.width && imageData.height && (imageData.data.length === 4*imageData.width*imageData.height))
     {
-        var width = imageData.width, height = imageData.height;
+        var width = imageData.width,
+            height = imageData.height,
+            z = [0, 0, 0, 0],
+            pt = function(x, y) {
+                if (0 <= x && 0 <= y && x < width && y < height)
+                {
+                    var index = (x + width*y) << 2;
+                    return [
+                    imageData.data[index  ],
+                    imageData.data[index+1],
+                    imageData.data[index+2],
+                    imageData.data[index+3]
+                    ];
+                }
+                return z;
+            }
+        ;
         switch (repetition)
         {
             case 'no-repeat':
             return new Pattern(function(x, y, pixel, i) {
-                x = stdMath.round(x);
-                y = stdMath.round(y);
-                if (0 <= x && x < width && 0 <= y && y < height)
+                //x = stdMath.round(x);
+                //y = stdMath.round(y);
+                if (-1 < x && x < width && -1 < y && y < height)
                 {
-                    var j = (x + y*width) << 2;
-                    pixel[i + 0] = imageData.data[j + 0];
-                    pixel[i + 1] = imageData.data[j + 1];
-                    pixel[i + 2] = imageData.data[j + 2];
-                    pixel[i + 3] = imageData.data[j + 3];
+                    var fx = stdMath.floor(x),
+                        fy = stdMath.floor(y),
+                        deltax = stdMath.abs(x-fx),
+                        deltay = stdMath.abs(y-fy);
+                    x = fx; y = fy;
+                    /*
+                    // bilinear
+                    var p00 = pt(x  ,y  ), p10 = pt(x+1,y  ),
+                        p01 = pt(x  ,y+1), p11 = pt(x+1,y+1);
+                    pixel[i + 0] = clamp(stdMath.round(linear(
+                        linear(p00[0], p10[0], deltax),
+                        linear(p10[0], p11[0], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(linear(
+                        linear(p00[1], p10[1], deltax),
+                        linear(p10[1], p11[1], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(linear(
+                        linear(p00[2], p10[2], deltax),
+                        linear(p10[2], p11[2], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(linear(
+                        linear(p00[3], p10[3], deltax),
+                        linear(p10[3], p11[3], deltax),
+                    deltay)), 0, 255);
+                    */
+                    // bicubic
+                    var p00 = pt(x-1,y-1), p10 = pt(x  ,y-1), p20 = pt(x+1,y-1), p30 = pt(x+2,y-1),
+                        p01 = pt(x-1,y  ), p11 = pt(x  ,y  ), p21 = pt(x+1,y  ), p31 = pt(x+2,y  ),
+                        p02 = pt(x-1,y+1), p12 = pt(x  ,y+1), p22 = pt(x+1,y+1), p32 = pt(x+2,y+1),
+                        p03 = pt(x-1,y+2), p13 = pt(x  ,y+2), p23 = pt(x+1,y+2), p33 = pt(x+2,y+2);
+                    pixel[i + 0] = clamp(stdMath.round(cubic(
+                        cubic(p00[0], p10[0], p20[0], p30[0], deltax),
+                        cubic(p01[0], p11[0], p21[0], p31[0], deltax),
+                        cubic(p02[0], p12[0], p22[0], p32[0], deltax),
+                        cubic(p03[0], p13[0], p23[0], p33[0], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(cubic(
+                        cubic(p00[1], p10[1], p20[1], p30[1], deltax),
+                        cubic(p01[1], p11[1], p21[1], p31[1], deltax),
+                        cubic(p02[1], p12[1], p22[1], p32[1], deltax),
+                        cubic(p03[1], p13[1], p23[1], p33[1], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(cubic(
+                        cubic(p00[2], p10[2], p20[2], p30[2], deltax),
+                        cubic(p01[2], p11[2], p21[2], p31[2], deltax),
+                        cubic(p02[2], p12[2], p22[2], p32[2], deltax),
+                        cubic(p03[2], p13[2], p23[2], p33[2], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(cubic(
+                        cubic(p00[3], p10[3], p20[3], p30[3], deltax),
+                        cubic(p01[3], p11[3], p21[3], p31[3], deltax),
+                        cubic(p02[3], p12[3], p22[3], p32[3], deltax),
+                        cubic(p03[3], p13[3], p23[3], p33[3], deltax),
+                        deltay)), 0, 255);
+                }
+                else
+                {
+                    pixel[i + 0] = 0;
+                    pixel[i + 1] = 0;
+                    pixel[i + 2] = 0;
+                    pixel[i + 3] = 0;
                 }
                 return pixel;
             });
             case 'repeat-x':
             return new Pattern(function(x, y, pixel, i) {
-                x = stdMath.round(x);
-                y = stdMath.round(y);
-                if (0 <= y && y < height)
+                //x = stdMath.round(x);
+                //y = stdMath.round(y);
+                if (-1 < y && y < height)
                 {
-                    x = x % width;
-                    if (0 > x) x += width;
-                    var j = (x + y*width) << 2;
-                    pixel[i + 0] = imageData.data[j + 0];
-                    pixel[i + 1] = imageData.data[j + 1];
-                    pixel[i + 2] = imageData.data[j + 2];
-                    pixel[i + 3] = imageData.data[j + 3];
+                    if (x > width) x -= stdMath.floor(x/width)*width;
+                    if (x < 0) x += stdMath.ceil(-x/width)*width;
+                    var fx = stdMath.floor(x),
+                        fy = stdMath.floor(y),
+                        deltax = stdMath.abs(x-fx),
+                        deltay = stdMath.abs(y-fy);
+                    x = fx; y = fy;
+                    /*
+                    // bilinear
+                    var p00 = pt(x  ,y  ), p10 = pt(x+1,y  ),
+                        p01 = pt(x  ,y+1), p11 = pt(x+1,y+1);
+                    pixel[i + 0] = clamp(stdMath.round(linear(
+                        linear(p00[0], p10[0], deltax),
+                        linear(p10[0], p11[0], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(linear(
+                        linear(p00[1], p10[1], deltax),
+                        linear(p10[1], p11[1], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(linear(
+                        linear(p00[2], p10[2], deltax),
+                        linear(p10[2], p11[2], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(linear(
+                        linear(p00[3], p10[3], deltax),
+                        linear(p10[3], p11[3], deltax),
+                    deltay)), 0, 255);
+                    */
+                    // bicubic
+                    var p00 = pt(x-1,y-1), p10 = pt(x  ,y-1), p20 = pt(x+1,y-1), p30 = pt(x+2,y-1),
+                        p01 = pt(x-1,y  ), p11 = pt(x  ,y  ), p21 = pt(x+1,y  ), p31 = pt(x+2,y  ),
+                        p02 = pt(x-1,y+1), p12 = pt(x  ,y+1), p22 = pt(x+1,y+1), p32 = pt(x+2,y+1),
+                        p03 = pt(x-1,y+2), p13 = pt(x  ,y+2), p23 = pt(x+1,y+2), p33 = pt(x+2,y+2);
+                    pixel[i + 0] = clamp(stdMath.round(cubic(
+                        cubic(p00[0], p10[0], p20[0], p30[0], deltax),
+                        cubic(p01[0], p11[0], p21[0], p31[0], deltax),
+                        cubic(p02[0], p12[0], p22[0], p32[0], deltax),
+                        cubic(p03[0], p13[0], p23[0], p33[0], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(cubic(
+                        cubic(p00[1], p10[1], p20[1], p30[1], deltax),
+                        cubic(p01[1], p11[1], p21[1], p31[1], deltax),
+                        cubic(p02[1], p12[1], p22[1], p32[1], deltax),
+                        cubic(p03[1], p13[1], p23[1], p33[1], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(cubic(
+                        cubic(p00[2], p10[2], p20[2], p30[2], deltax),
+                        cubic(p01[2], p11[2], p21[2], p31[2], deltax),
+                        cubic(p02[2], p12[2], p22[2], p32[2], deltax),
+                        cubic(p03[2], p13[2], p23[2], p33[2], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(cubic(
+                        cubic(p00[3], p10[3], p20[3], p30[3], deltax),
+                        cubic(p01[3], p11[3], p21[3], p31[3], deltax),
+                        cubic(p02[3], p12[3], p22[3], p32[3], deltax),
+                        cubic(p03[3], p13[3], p23[3], p33[3], deltax),
+                        deltay)), 0, 255);
+                }
+                else
+                {
+                    pixel[i + 0] = 0;
+                    pixel[i + 1] = 0;
+                    pixel[i + 2] = 0;
+                    pixel[i + 3] = 0;
                 }
                 return pixel;
             });
             case 'repeat-y':
             return new Pattern(function(x, y, pixel, i) {
-                x = stdMath.round(x);
-                y = stdMath.round(y);
-                if (0 <= x && x < width)
+                //x = stdMath.round(x);
+                //y = stdMath.round(y);
+                if (-1 < x && x < width)
                 {
-                    y = y % height;
-                    if (0 > y) y += height;
-                    var j = (x + y*width) << 2;
-                    pixel[i + 0] = imageData.data[j + 0];
-                    pixel[i + 1] = imageData.data[j + 1];
-                    pixel[i + 2] = imageData.data[j + 2];
-                    pixel[i + 3] = imageData.data[j + 3];
+                    if (y > height) y -= stdMath.floor(y/height)*height;
+                    if (y < 0) y += stdMath.ceil(-y/height)*height;
+                    var fx = stdMath.floor(x),
+                        fy = stdMath.floor(y),
+                        deltax = stdMath.abs(x-fx),
+                        deltay = stdMath.abs(y-fy);
+                    x = fx; y = fy;
+                    /*
+                    // bilinear
+                    var p00 = pt(x  ,y  ), p10 = pt(x+1,y  ),
+                        p01 = pt(x  ,y+1), p11 = pt(x+1,y+1);
+                    pixel[i + 0] = clamp(stdMath.round(linear(
+                        linear(p00[0], p10[0], deltax),
+                        linear(p10[0], p11[0], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(linear(
+                        linear(p00[1], p10[1], deltax),
+                        linear(p10[1], p11[1], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(linear(
+                        linear(p00[2], p10[2], deltax),
+                        linear(p10[2], p11[2], deltax),
+                    deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(linear(
+                        linear(p00[3], p10[3], deltax),
+                        linear(p10[3], p11[3], deltax),
+                    deltay)), 0, 255);
+                    */
+                    // bicubic
+                    var p00 = pt(x-1,y-1), p10 = pt(x  ,y-1), p20 = pt(x+1,y-1), p30 = pt(x+2,y-1),
+                        p01 = pt(x-1,y  ), p11 = pt(x  ,y  ), p21 = pt(x+1,y  ), p31 = pt(x+2,y  ),
+                        p02 = pt(x-1,y+1), p12 = pt(x  ,y+1), p22 = pt(x+1,y+1), p32 = pt(x+2,y+1),
+                        p03 = pt(x-1,y+2), p13 = pt(x  ,y+2), p23 = pt(x+1,y+2), p33 = pt(x+2,y+2);
+                    pixel[i + 0] = clamp(stdMath.round(cubic(
+                        cubic(p00[0], p10[0], p20[0], p30[0], deltax),
+                        cubic(p01[0], p11[0], p21[0], p31[0], deltax),
+                        cubic(p02[0], p12[0], p22[0], p32[0], deltax),
+                        cubic(p03[0], p13[0], p23[0], p33[0], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 1] = clamp(stdMath.round(cubic(
+                        cubic(p00[1], p10[1], p20[1], p30[1], deltax),
+                        cubic(p01[1], p11[1], p21[1], p31[1], deltax),
+                        cubic(p02[1], p12[1], p22[1], p32[1], deltax),
+                        cubic(p03[1], p13[1], p23[1], p33[1], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 2] = clamp(stdMath.round(cubic(
+                        cubic(p00[2], p10[2], p20[2], p30[2], deltax),
+                        cubic(p01[2], p11[2], p21[2], p31[2], deltax),
+                        cubic(p02[2], p12[2], p22[2], p32[2], deltax),
+                        cubic(p03[2], p13[2], p23[2], p33[2], deltax),
+                        deltay)), 0, 255);
+                    pixel[i + 3] = clamp(stdMath.round(cubic(
+                        cubic(p00[3], p10[3], p20[3], p30[3], deltax),
+                        cubic(p01[3], p11[3], p21[3], p31[3], deltax),
+                        cubic(p02[3], p12[3], p22[3], p32[3], deltax),
+                        cubic(p03[3], p13[3], p23[3], p33[3], deltax),
+                        deltay)), 0, 255);
+                }
+                else
+                {
+                    pixel[i + 0] = 0;
+                    pixel[i + 1] = 0;
+                    pixel[i + 2] = 0;
+                    pixel[i + 3] = 0;
                 }
                 return pixel;
             });
             case 'repeat':
             default:
             return new Pattern(function(x, y, pixel, i) {
-                x = stdMath.round(x);
-                y = stdMath.round(y);
-                x = x % width;
-                if (0 > x) x += width;
-                y = y % height;
-                if (0 > y) y += height;
-                var j = (x + y*width) << 2;
-                pixel[i + 0] = imageData.data[j + 0];
-                pixel[i + 1] = imageData.data[j + 1];
-                pixel[i + 2] = imageData.data[j + 2];
-                pixel[i + 3] = imageData.data[j + 3];
+                //x = stdMath.round(x);
+                //y = stdMath.round(y);
+                if (x > width) x -= stdMath.floor(x/width)*width;
+                if (x < 0) x += stdMath.ceil(-x/width)*width;
+                if (y > height) y -= stdMath.floor(y/height)*height;
+                if (y < 0) y += stdMath.ceil(-y/height)*height;
+                var fx = stdMath.floor(x),
+                    fy = stdMath.floor(y),
+                    deltax = stdMath.abs(x-fx),
+                    deltay = stdMath.abs(y-fy);
+                x = fx; y = fy;
+                /*
+                // bilinear
+                var p00 = pt(x  ,y  ), p10 = pt(x+1,y  ),
+                    p01 = pt(x  ,y+1), p11 = pt(x+1,y+1);
+                pixel[i + 0] = clamp(stdMath.round(linear(
+                    linear(p00[0], p10[0], deltax),
+                    linear(p10[0], p11[0], deltax),
+                deltay)), 0, 255);
+                pixel[i + 1] = clamp(stdMath.round(linear(
+                    linear(p00[1], p10[1], deltax),
+                    linear(p10[1], p11[1], deltax),
+                deltay)), 0, 255);
+                pixel[i + 2] = clamp(stdMath.round(linear(
+                    linear(p00[2], p10[2], deltax),
+                    linear(p10[2], p11[2], deltax),
+                deltay)), 0, 255);
+                pixel[i + 3] = clamp(stdMath.round(linear(
+                    linear(p00[3], p10[3], deltax),
+                    linear(p10[3], p11[3], deltax),
+                deltay)), 0, 255);
+                */
+                // bicubic
+                var p00 = pt(x-1,y-1), p10 = pt(x  ,y-1), p20 = pt(x+1,y-1), p30 = pt(x+2,y-1),
+                    p01 = pt(x-1,y  ), p11 = pt(x  ,y  ), p21 = pt(x+1,y  ), p31 = pt(x+2,y  ),
+                    p02 = pt(x-1,y+1), p12 = pt(x  ,y+1), p22 = pt(x+1,y+1), p32 = pt(x+2,y+1),
+                    p03 = pt(x-1,y+2), p13 = pt(x  ,y+2), p23 = pt(x+1,y+2), p33 = pt(x+2,y+2);
+                pixel[i + 0] = clamp(stdMath.round(cubic(
+                    cubic(p00[0], p10[0], p20[0], p30[0], deltax),
+                    cubic(p01[0], p11[0], p21[0], p31[0], deltax),
+                    cubic(p02[0], p12[0], p22[0], p32[0], deltax),
+                    cubic(p03[0], p13[0], p23[0], p33[0], deltax),
+                    deltay)), 0, 255);
+                pixel[i + 1] = clamp(stdMath.round(cubic(
+                    cubic(p00[1], p10[1], p20[1], p30[1], deltax),
+                    cubic(p01[1], p11[1], p21[1], p31[1], deltax),
+                    cubic(p02[1], p12[1], p22[1], p32[1], deltax),
+                    cubic(p03[1], p13[1], p23[1], p33[1], deltax),
+                    deltay)), 0, 255);
+                pixel[i + 2] = clamp(stdMath.round(cubic(
+                    cubic(p00[2], p10[2], p20[2], p30[2], deltax),
+                    cubic(p01[2], p11[2], p21[2], p31[2], deltax),
+                    cubic(p02[2], p12[2], p22[2], p32[2], deltax),
+                    cubic(p03[2], p13[2], p23[2], p33[2], deltax),
+                    deltay)), 0, 255);
+                pixel[i + 3] = clamp(stdMath.round(cubic(
+                    cubic(p00[3], p10[3], p20[3], p30[3], deltax),
+                    cubic(p01[3], p11[3], p21[3], p31[3], deltax),
+                    cubic(p02[3], p12[3], p22[3], p32[3], deltax),
+                    cubic(p03[3], p13[3], p23[3], p33[3], deltax),
+                    deltay)), 0, 255);
                 return pixel;
             });
         }
@@ -6982,42 +7249,65 @@ function Image()
             return src;
         },
         set: function(file) {
-            if ((('undefined' !== typeof ArrayBuffer) && (file instanceof ArrayBuffer))
-                || (('undefined' !== typeof Buffer) && (file instanceof Buffer)))
+            /*if (isBrowser)
             {
-                // buffer passed
-                // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
-                // https://nodejs.org/api/buffer.html#class-buffer
-                load(src = file);
+                var im = new window.Image();
+                im.onload = function() {
+                    var canvas = document.createElement('canvas'),
+                        ctx = canvas.getContext('2d'), imgData;
+
+                    canvas.width = im.width;
+                    canvas.height = im.height;
+                    imgData = ctx.drawImage(im, 0, 0);
+                    imgData = ctx.getImageData(0, 0, im.width, im.height);
+
+                    imageData = imgData;
+                    width = imgData.width;
+                    height = imgData.height;
+                    if (self.onload) self.onload();
+                };
+                im.onerror = error;
+                im.src = file;
             }
-            else if ((('undefined' !== typeof Blob) && (file instanceof Blob))
-                || (('undefined' !== typeof Buffer) && (Buffer.Blob) && (file instanceof Buffer.Blob)))
-            {
-                // blob passed
-                // https://developer.mozilla.org/en-US/docs/Web/API/Blob
-                // https://nodejs.org/api/buffer.html#class-blob
-                (src = file).arrayBuffer().then(load).catch(error);
-            }
-            else if (('string' === typeof file) || (file instanceof String))
-            {
-                if (/^data:image\/[a-z]+;base64,/.test(file))
+            else
+            {*/
+                if ((('undefined' !== typeof ArrayBuffer) && (file instanceof ArrayBuffer))
+                    || (('undefined' !== typeof Buffer) && (file instanceof Buffer)))
                 {
-                    // base64 encoded image
-                    load(base64_decode((src = file).slice(file.indexOf(';base64,')+8)));
+                    // buffer passed
+                    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+                    // https://nodejs.org/api/buffer.html#class-buffer
+                    load(src = file);
                 }
-                else if (isNode)
+                else if ((('undefined' !== typeof Blob) && (file instanceof Blob))
+                    || (('undefined' !== typeof Buffer) && (Buffer.Blob) && (file instanceof Buffer.Blob)))
                 {
-                    // file path of image
-                    require('fs').readFile(src = file, function(err, buffer) {
-                        if (err) error(err);
-                        else load(buffer);
-                    });
+                    // blob passed
+                    // https://developer.mozilla.org/en-US/docs/Web/API/Blob
+                    // https://nodejs.org/api/buffer.html#class-blob
+                    (src = file).arrayBuffer().then(load).catch(error);
                 }
-            }
-            /*else
-            {
-                error('Unsupported src property');
-            }*/
+                else if (('string' === typeof file) || (file instanceof String))
+                {
+                    if (/^data:image\/[a-z]+;base64,/.test(file))
+                    {
+                        // base64 encoded image
+                        load(base64_decode((src = file).slice(file.indexOf(';base64,')+8)));
+                    }
+                    else if (isNode)
+                    {
+                        // file path of image
+                        require('fs').readFile(src = file, function(err, buffer) {
+                            if (err) error(err);
+                            else load(buffer);
+                        });
+                    }
+                }
+                /*else
+                {
+                    error('Unsupported src property');
+                }*/
+            /*}*/
         }
     });
     self.getImageData = function() {
@@ -7129,7 +7419,7 @@ CanvasLite[PROTO] = {
     toBlob: null,
     toPNG: null
 };
-CanvasLite.VERSION = "1.0.0";
+CanvasLite.VERSION = "1.0.1";
 CanvasLite.Image = Image;
 CanvasLite.RenderingContext2D = Rasterizer.RenderingContext2D;
 

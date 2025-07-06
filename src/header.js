@@ -35,4 +35,3 @@ var PROTO = 'prototype',
     COMMAND = /[MLHVCSQTAZ]/gi,
     NUMBER = /-?(?:(?:\d+\.\d+)|(?:\.\d+)|(?:\d+))/g
 ;
-

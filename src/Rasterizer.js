@@ -836,7 +836,9 @@ function RenderingContext2D(width, height, set_rgba_at, get_rgba_from)
         }
     };
     self.drawImage = function(imgData, sx, sy, sw, sh, dx, dy, dw, dh) {
-        if (!imgData || !imgData.data) err('Invalid image data in drawImage');
+        if (imgData instanceof CanvasLite) imgData = imgData.getContext('2d').getImageData(0, 0, imgData.width, imgData.height);
+        if (imgData && ('function' === typeof imgData.getImageData)) imgData = imgData.getImageData();
+         if (!imgData || !imgData.data) err('Invalid image data in drawImage');
         var W = width, H = height,
             w = imgData.width, h = imgData.height,
             data = imgData.data, argslen = arguments.length,
